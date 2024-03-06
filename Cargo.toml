@@ -7,3 +7,6 @@ edition = "2021"
 kiss3d = "0.35"
 rand = "0.8.5"
 
+[[bin]]
+name = "conway"
+path = "src/conway/bin/main.rs"
