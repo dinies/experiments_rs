@@ -1,24 +1,17 @@
 extern crate kiss3d;
 
 use kiss3d::light::Light;
-use kiss3d::nalgebra::{Isometry2, Translation2, UnitComplex, UnitQuaternion, Vector2, Vector3};
-use kiss3d::scene::{PlanarSceneNode, SceneNode};
+use kiss3d::nalgebra::{Translation2, Vector2, Vector3};
+use kiss3d::scene::PlanarSceneNode;
 use kiss3d::window::{State, Window};
-use rand::seq::SliceRandom;
 use rand::Rng;
 
 struct Tile {
     node: PlanarSceneNode,
-    // position: Translation2<f32>,
-    // colour: Vector3<f32>
 }
 impl Tile {
-    pub fn new(node: PlanarSceneNode, position: Translation2<f32>, colour: Vector3<f32>) -> Self {
-        Self {
-            node,
-            // position,
-            // colour,
-        }
+    pub fn new(node: PlanarSceneNode) -> Self {
+        Self { node }
     }
 }
 
@@ -51,7 +44,7 @@ impl CheckerBoard {
                 ));
                 node.append_translation(&position);
 
-                let tile: Tile = Tile::new(node, position, color_empty);
+                let tile: Tile = Tile::new(node);
                 column.push(tile);
             }
             matrix.push(column);
@@ -86,36 +79,18 @@ impl State for CheckerBoard {
     }
 }
 
-struct AppState {
-    c: PlanarSceneNode,
-    rot: UnitComplex<f32>,
-}
-
-impl State for AppState {
-    fn step(&mut self, _: &mut Window) {
-        self.c.prepend_to_local_rotation(&self.rot)
-    }
-}
-
 fn main() {
     let mut window = Window::new("Tiles board");
-    // let mut c = window.add_rectangle(30.0, 20.0);
-
-    // c.set_color(1.0, 0.0, 0.0);
 
     window.set_light(Light::StickToCamera);
-
-    // let rot = UnitComplex::new(0.01);
-    // let state = AppState { c, rot };
-
     let state: CheckerBoard = CheckerBoard::new(
         &mut window,
         20,
         20,
         50.0,
         50.0,
-        Vector3::<f32>::new(226.0/255.0, 135.0/255.0,67.0/255.0),
-        Vector3::<f32>::new(6.0/255.0, 57.0/255.0, 112.0/255.0),
+        Vector3::<f32>::new(226.0 / 255.0, 135.0 / 255.0, 67.0 / 255.0),
+        Vector3::<f32>::new(6.0 / 255.0, 57.0 / 255.0, 112.0 / 255.0),
     );
 
     window.render_loop(state)
