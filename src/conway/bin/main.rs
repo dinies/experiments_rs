@@ -79,7 +79,7 @@ impl Board {
         }
     }
 
-    pub fn is_alive(grid_state: &Vec<Vec<bool>>, coords: Coords2D) -> bool {
+    pub fn is_alive(grid_state: &[Vec<bool>], coords: Coords2D) -> bool {
         grid_state[coords.row][coords.col]
     }
 
@@ -137,10 +137,7 @@ impl Board {
 
         for (coord_row, coord_col) in neighbors_coords {
             if self.is_valid_square(coord_row, coord_col) {
-                neighbors.push(Coords2D::new(
-                    coord_row.try_into().unwrap(),
-                    coord_col.try_into().unwrap(),
-                ));
+                neighbors.push(Coords2D::new(coord_row, coord_col));
             }
         }
         neighbors
@@ -173,18 +170,14 @@ impl Simulation {
                     }
                 }
                 if is_alive {
-                    if num_of_alive_neighbors < 2 {
-                        self.world.set_dead(curr_coord);
-                    } else if num_of_alive_neighbors > 3 {
+                    if !(2..=3).contains(&num_of_alive_neighbors) {
                         self.world.set_dead(curr_coord);
                     }
                     //else it stays alive
-                } else {
-                    if num_of_alive_neighbors == 3 {
-                        self.world.set_alive(curr_coord);
-                    }
-                    //else remains dead
+                } else if num_of_alive_neighbors == 3 {
+                    self.world.set_alive(curr_coord);
                 }
+                //else remains dead
             }
         }
     }
