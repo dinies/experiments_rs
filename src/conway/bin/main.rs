@@ -28,10 +28,16 @@ impl Coords2D {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum CellState {
+    Alive,
+    Dead,
+}
+
 struct Board {
     rows: usize,
     cols: usize,
-    grid_state: Vec<Vec<bool>>,
+    grid_state: Vec<Vec<CellState>>,
     grid_graphics: Vec<Vec<Tile>>,
     color_dead: Vector3<f32>,
     color_alive: Vector3<f32>,
@@ -62,7 +68,7 @@ impl Board {
                 node.append_translation(&position);
 
                 let tile: Tile = Tile::new(node);
-                column_state.push(false);
+                column_state.push(CellState::Dead);
                 column_graphics.push(tile);
             }
             matrix_state.push(column_state);
@@ -79,8 +85,8 @@ impl Board {
         }
     }
 
-    pub fn is_alive(grid_state: &[Vec<bool>], coords: Coords2D) -> bool {
-        grid_state[coords.row][coords.col]
+    pub fn is_alive(grid_state: &[Vec<CellState>], coords: Coords2D) -> bool {
+        grid_state[coords.row][coords.col] == CellState::Alive
     }
 
     pub fn set_alive(&mut self, coords: Coords2D) {
@@ -89,7 +95,17 @@ impl Board {
             self.color_alive[1],
             self.color_alive[2],
         );
-        self.grid_state[coords.row][coords.col] = true;
+        self.grid_state[coords.row][coords.col] = CellState::Alive;
+    }
+
+    #[allow(dead_code)]
+    pub fn set_alive_in_place(&self, tile: &mut Tile, state: &mut CellState) {
+        tile.node.set_color(
+            self.color_alive[0],
+            self.color_alive[1],
+            self.color_alive[2],
+        );
+        *state = CellState::Alive;
     }
 
     pub fn set_dead(&mut self, coords: Coords2D) {
@@ -98,7 +114,14 @@ impl Board {
             self.color_dead[1],
             self.color_dead[2],
         );
-        self.grid_state[coords.row][coords.col] = false;
+        self.grid_state[coords.row][coords.col] = CellState::Dead;
+    }
+
+    #[allow(dead_code)]
+    pub fn set_dead_in_place(&self, tile: &mut Tile, state: &mut CellState) {
+        tile.node
+            .set_color(self.color_dead[0], self.color_dead[1], self.color_dead[2]);
+        *state = CellState::Dead;
     }
 
     fn is_valid_square(&self, row: usize, col: usize) -> bool {
@@ -155,29 +178,45 @@ impl Simulation {
         }
         Self { world: board }
     }
+    pub fn count_alive_neighbors(
+        neighbors: &Vec<Coords2D>,
+        grid_state: &[Vec<CellState>],
+    ) -> usize {
+        let mut num_of_alive_neighbors: usize = 0;
+        for neighbor in neighbors {
+            let is_neighbor_alive: bool = Board::is_alive(grid_state, *neighbor);
+            if is_neighbor_alive {
+                num_of_alive_neighbors += 1;
+            }
+        }
+        num_of_alive_neighbors
+    }
+
+    pub fn apply_conway_rule(
+        &mut self,
+        curr_coord: &Coords2D,
+        num_of_alive_neighbors: usize,
+        grid_state: &[Vec<CellState>],
+    ) {
+        let is_alive = Board::is_alive(grid_state, *curr_coord);
+        if is_alive {
+            if !(2..=3).contains(&num_of_alive_neighbors) {
+                self.world.set_dead(*curr_coord);
+            }
+        } else if num_of_alive_neighbors == 3 {
+            self.world.set_alive(*curr_coord);
+        }
+    }
+
     pub fn evolve(&mut self) {
-        let grid_state: Vec<Vec<bool>> = self.world.grid_state.clone();
+        let grid_state: Vec<Vec<CellState>> = self.world.grid_state.clone();
         for r in 0..self.world.rows {
             for c in 0..self.world.cols {
                 let curr_coord = Coords2D::new(r, c);
                 let neighbors = self.world.get_neighbors(curr_coord);
-                let is_alive = Board::is_alive(&grid_state, curr_coord);
-                let mut num_of_alive_neighbors: usize = 0;
-                for neighbor in neighbors {
-                    let is_neighbor_alive: bool = Board::is_alive(&grid_state, neighbor);
-                    if is_neighbor_alive {
-                        num_of_alive_neighbors += 1;
-                    }
-                }
-                if is_alive {
-                    if !(2..=3).contains(&num_of_alive_neighbors) {
-                        self.world.set_dead(curr_coord);
-                    }
-                    //else it stays alive
-                } else if num_of_alive_neighbors == 3 {
-                    self.world.set_alive(curr_coord);
-                }
-                //else remains dead
+                let num_of_alive_neighbors: usize =
+                    Simulation::count_alive_neighbors(&neighbors, &grid_state);
+                self.apply_conway_rule(&curr_coord, num_of_alive_neighbors, &grid_state);
             }
         }
     }
