@@ -134,6 +134,7 @@ words[i] consists of lowercase English letters.
 letter is a lowercase English letter.
 At most 4 * 104 calls will be made to query.
 */
+use std::collections::HashSet;
 use std::collections::VecDeque;
 
 struct StreamChecker {
@@ -147,7 +148,8 @@ impl StreamChecker {
         let upper_bound_words = 2e3;
         let mut _reversed_words: Vec<Vec<char>> = Vec::with_capacity(upper_bound_words as usize);
         let mut _num_to_remember = 0;
-        for word in words {
+        let words_without_duplicates: HashSet<String> = words.into_iter().collect();
+        for word in words_without_duplicates {
             if word.len() > _num_to_remember {
                 _num_to_remember = word.len();
             }
@@ -232,8 +234,7 @@ impl StreamChecker {
         }
         let queries: Vec<char> = vec!['s'; 40000];
         let mut obj = StreamChecker::new(words);
-        for (i, q) in queries.iter().enumerate() {
-            dbg!(i);
+        for q in queries.iter() {
             assert_eq![obj.query(*q), false];
         }
     }
