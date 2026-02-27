@@ -21,13 +21,14 @@ impl ArrayUtils {
     }
 }
 
-// Design a data structure that follows the constraints of a Least Recently Used (LRU) cache.
-// LRUCache(int capacity) Initialize the LRU cache with positive size capacity.
-// int get(int key) Return the value of the key if the key exists, otherwise return -1.
-// void put(int key, int value) Update the value of the key if the key exists.
-// Otherwise, add the key-value pair to the cache. If the number of keys
-// exceeds the capacity from this operation, evict the least recently used key.
-// The functions get and put must each run in O(1) average time complexity.
+// Design a data structure that follows the constraints of a Least Recently Used
+// (LRU) cache. LRUCache(int capacity) Initialize the LRU cache with positive
+// size capacity. int get(int key) Return the value of the key if the key
+// exists, otherwise return -1. void put(int key, int value) Update the value
+// of the key if the key exists. Otherwise, add the key-value pair to the
+// cache. If the number of keys exceeds the capacity from this operation,
+// evict the least recently used key. The functions get and put must each
+// run in O(1) average time complexity.
 struct LRUCache {
     map: HashMap<i32, i32>,
     // Vector that lists the keys used in the map from the oldest to the newest
@@ -117,7 +118,9 @@ impl LRUCache {
 struct LFUCache {
     // Map that stores the key value and frequency of use { key -> [value, times_used]}
     map: HashMap<i32, (i32, i32)>,
-    // Vector of vectors of keys that stores the frequency of the keys { times_used -> Vec<key> } the inner vectors are ordered with the most recently used key last
+    // Vector of vectors of keys that stores the frequency of the keys
+    // { times_used -> Vec<key> } the inner vectors are ordered with
+    // the most recently used key last
     frequency_map: HashMap<i32, VecDeque<i32>>,
     max_elem_num: i32,
 }
