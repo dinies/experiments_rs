@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 kiss3d = "0.35"
 rand = "0.8.5"
+randomizer = "0.1.2"
 
 [[bin]]
 name = "conway"

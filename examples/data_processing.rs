@@ -134,17 +134,23 @@ words[i] consists of lowercase English letters.
 letter is a lowercase English letter.
 At most 4 * 104 calls will be made to query.
 */
+
+trait StreamChecker {
+    fn new(words: Vec<String>) -> Self;
+    fn query(&mut self, letter: char) -> bool;
+}
+
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
-struct StreamChecker {
+struct SlowStreamChecker {
     chars: VecDeque<char>,
     reversed_words: Vec<Vec<char>>,
     num_to_remember: usize,
 }
 
-impl StreamChecker {
-    pub fn new(words: Vec<String>) -> Self {
+impl StreamChecker for SlowStreamChecker {
+    fn new(words: Vec<String>) -> Self {
         let upper_bound_words = 2e3;
         let mut _reversed_words: Vec<Vec<char>> = Vec::with_capacity(upper_bound_words as usize);
         let mut _num_to_remember = 0;
@@ -157,14 +163,14 @@ impl StreamChecker {
             _reversed_words.push(reversed_word);
         }
 
-        StreamChecker {
+        SlowStreamChecker {
             chars: VecDeque::with_capacity(_num_to_remember),
             reversed_words: _reversed_words,
             num_to_remember: _num_to_remember,
         }
     }
 
-    pub fn query(&mut self, letter: char) -> bool {
+    fn query(&mut self, letter: char) -> bool {
         self.chars.push_front(letter);
         if self.chars.len() > self.num_to_remember {
             self.chars.pop_back();
@@ -204,48 +210,222 @@ impl StreamChecker {
         }
         return false;
     }
-    fn simple_test() {
-        let mut obj = StreamChecker::new(vec![
-            String::from("cd"),
-            String::from("f"),
-            String::from("kl"),
-        ]);
-        assert_eq![obj.query('a'), false];
-        assert_eq![obj.query('b'), false];
-        assert_eq![obj.query('c'), false];
-        assert_eq![obj.query('d'), true]; // because 'cd' is in the wordlist
-        assert_eq![obj.query('e'), false];
-        assert_eq![obj.query('f'), true]; // because 'f' is in the wordlist
-        assert_eq![obj.query('g'), false];
-        assert_eq![obj.query('h'), false];
-        assert_eq![obj.query('i'), false];
-        assert_eq![obj.query('j'), false];
-        assert_eq![obj.query('k'), false];
-        assert_eq![obj.query('l'), true]; // because 'kl' is in the wordlist
+}
+
+fn simple_test<T: StreamChecker>() {
+    let mut obj = T::new(vec![
+        String::from("cd"),
+        String::from("f"),
+        String::from("kl"),
+    ]);
+    assert_eq![obj.query('a'), false];
+    assert_eq![obj.query('b'), false];
+    assert_eq![obj.query('c'), false];
+    assert_eq![obj.query('d'), true]; // because 'cd' is in the wordlist
+    assert_eq![obj.query('e'), false];
+    assert_eq![obj.query('f'), true]; // because 'f' is in the wordlist
+    assert_eq![obj.query('g'), false];
+    assert_eq![obj.query('h'), false];
+    assert_eq![obj.query('i'), false];
+    assert_eq![obj.query('j'), false];
+    assert_eq![obj.query('k'), false];
+    assert_eq![obj.query('l'), true]; // because 'kl' is in the wordlist
+}
+
+fn stress_test_duplicates<T: StreamChecker>() {
+    let mut words: Vec<String> = Vec::with_capacity(1664);
+    let base: String = String::from("charleetss");
+    for _ in 0..64 {
+        for l in 'a'..='z' {
+            words.push(l.to_string() + &base);
+        }
+    }
+    let queries: Vec<char> = vec!['s'; 40000];
+    let mut obj = T::new(words);
+    for q in queries.iter() {
+        assert_eq![obj.query(*q), false];
+    }
+}
+
+fn medium_test<T: StreamChecker>() {
+    let mut obj = T::new(vec![
+        String::from("ab"),
+        String::from("ba"),
+        String::from("aaab"),
+        String::from("abab"),
+        String::from("baa"),
+    ]);
+    assert_eq![obj.query('a'), false];
+    assert_eq![obj.query('a'), false];
+    assert_eq![obj.query('a'), false];
+    assert_eq![obj.query('a'), false];
+    assert_eq![obj.query('a'), false];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('b'), false];
+    assert_eq![obj.query('b'), false];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('b'), false];
+    assert_eq![obj.query('b'), false];
+    assert_eq![obj.query('b'), false];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('a'), false];
+    assert_eq![obj.query('b'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('a'), true];
+    assert_eq![obj.query('a'), false];
+}
+
+use randomizer::Randomizer;
+fn create_stress_input() -> (Vec<String>, Vec<char>) {
+    let num_words = 200;
+    let num_char_in_word = 200;
+    let num_input_chars = 80000;
+
+    let mut words: Vec<String> = Vec::with_capacity(num_words);
+    let mut queries: Vec<char> = Vec::with_capacity(num_input_chars);
+
+    for _ in 0..num_words {
+        words.push(
+            Randomizer::ALPHABETICAL_LOWER(num_char_in_word)
+                .string()
+                .unwrap(),
+        );
+    }
+    for _ in 0..num_input_chars {
+        queries.push(
+            Randomizer::ALPHABETICAL_LOWER(1)
+                .string()
+                .unwrap()
+                .chars()
+                .next()
+                .unwrap(),
+        );
+    }
+    (words, queries)
+}
+
+fn stress_test_long_dictionary<T: StreamChecker>() {
+    let input: (Vec<String>, Vec<char>) = create_stress_input();
+    use std::time::Instant;
+    let now = Instant::now();
+    let mut obj = T::new(input.0);
+    println!("Elapsed after new() : {:.2?}", now.elapsed());
+    let mut counter = 0;
+    for q in input.1.into_iter() {
+        if counter > 20 {
+            return;
+        }
+        counter += 1;
+        assert_eq![obj.query(q), false];
+    }
+    println!("Elapsed after call() : {:.2?}", now.elapsed());
+}
+
+impl SlowStreamChecker {
+    fn test() {
+        simple_test::<SlowStreamChecker>();
+        medium_test::<SlowStreamChecker>();
+        stress_test_duplicates::<SlowStreamChecker>();
+        stress_test_long_dictionary::<SlowStreamChecker>();
+    }
+}
+
+use std::collections::HashMap;
+struct TrieNode {
+    children: HashMap<char, Box<TrieNode>>,
+    is_end_of_word: bool,
+}
+
+impl TrieNode {
+    fn new() -> Self {
+        TrieNode {
+            children: HashMap::new(),
+            is_end_of_word: false,
+        }
+    }
+}
+
+struct FastStreamChecker {
+    trie: TrieNode,
+    chars: VecDeque<char>,
+    num_to_remember: usize,
+}
+impl StreamChecker for FastStreamChecker {
+    fn new(words: Vec<String>) -> Self {
+        let mut _num_to_remember = 0;
+        let mut _trie = TrieNode::new();
+        for word in words.into_iter() {
+            if word.len() > _num_to_remember {
+                _num_to_remember = word.len();
+            }
+            Self::add_word(
+                &mut _trie,
+                word.chars().map(|c| c).rev().collect::<Vec<_>>(),
+            );
+        }
+        FastStreamChecker {
+            trie: _trie,
+            chars: VecDeque::with_capacity(_num_to_remember),
+            num_to_remember: _num_to_remember,
+        }
     }
 
-    fn stress_test() {
-        let mut words: Vec<String> = Vec::with_capacity(1664);
-        let base: String = String::from("charleetss");
-        for _ in 0..64 {
-            for l in 'a'..='z' {
-                words.push(l.to_string() + &base);
+    fn query(&mut self, letter: char) -> bool {
+        self.chars.push_front(letter);
+        if self.chars.len() > self.num_to_remember {
+            self.chars.pop_back();
+        }
+
+        let mut cursor: &TrieNode = &self.trie;
+        for c in self.chars.iter() {
+            if !cursor.children.contains_key(&c) {
+                return false;
+            }
+            cursor = cursor.children.get(&c).unwrap();
+            if cursor.is_end_of_word {
+                return true;
             }
         }
-        let queries: Vec<char> = vec!['s'; 40000];
-        let mut obj = StreamChecker::new(words);
-        for q in queries.iter() {
-            assert_eq![obj.query(*q), false];
-        }
-    }
 
+        return false;
+    }
+}
+impl FastStreamChecker {
+    fn add_word(trie: &mut TrieNode, word: Vec<char>) {
+        let mut cursor: &mut TrieNode = trie;
+        for letter in word.into_iter() {
+            if !cursor.children.contains_key(&letter) {
+                cursor.children.insert(letter, Box::new(TrieNode::new()));
+            }
+            cursor = cursor.children.get_mut(&letter).unwrap();
+        }
+        cursor.is_end_of_word = true;
+    }
     fn test() {
-        Self::simple_test();
-        Self::stress_test();
+        simple_test::<FastStreamChecker>();
+        medium_test::<FastStreamChecker>();
+        stress_test_duplicates::<FastStreamChecker>();
+        stress_test_long_dictionary::<FastStreamChecker>();
     }
 }
 
 fn main() {
+    println!("KthLargest tests");
     KthLargest::test();
-    StreamChecker::test();
+    println!("SlowStreamChecker tests");
+    SlowStreamChecker::test();
+    println!("FastStreamChecker tests");
+    FastStreamChecker::test();
 }
