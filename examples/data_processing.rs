@@ -439,12 +439,27 @@ intervals is small compared to the size of the data stream?
 struct SummaryRanges {
     ranges: Vec<Vec<i32>>,
 }
-use std::cmp;
 impl SummaryRanges {
     fn new() -> Self {
         SummaryRanges {
             ranges: Vec::with_capacity(3 * 104),
         }
+    }
+
+    fn cmp_min<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
+        if a <= b {
+            return a;
+        } else {
+            return b;
+        };
+    }
+
+    fn cmp_max<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
+        if a >= b {
+            return a;
+        } else {
+            return b;
+        };
     }
 
     fn add_num(&mut self, value: i32) {
@@ -480,8 +495,8 @@ impl SummaryRanges {
                         it.next();
                     } else if is_just_outside(value, &curr_elem) {
                         new_ranges.push(vec![
-                            cmp::min(curr_elem[0], value),
-                            cmp::max(curr_elem[1], value),
+                            Self::cmp_min(curr_elem[0], value),
+                            Self::cmp_max(curr_elem[1], value),
                         ]);
                         added = true;
                     } else if value < curr_elem[0] - 1 {
