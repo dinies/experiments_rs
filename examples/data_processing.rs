@@ -322,12 +322,7 @@ fn stress_test_long_dictionary<T: StreamChecker>() {
     let now = Instant::now();
     let mut obj = T::new(input.0);
     println!("Elapsed after new() : {:.2?}", now.elapsed());
-    let mut counter = 0;
     for q in input.1.into_iter() {
-        if counter > 20 {
-            return;
-        }
-        counter += 1;
         assert_eq![obj.query(q), false];
     }
     println!("Elapsed after call() : {:.2?}", now.elapsed());
@@ -421,6 +416,109 @@ impl FastStreamChecker {
     }
 }
 
+/*
+ SummaryRanges
+Given a data stream input of non-negative integers a1, a2, ..., an, summarize
+the numbers seen so far as a list of disjoint intervals.
+
+Implement the SummaryRanges class:
+SummaryRanges() Initializes the object with an empty stream.
+void addNum(int value) Adds the integer value to the stream.
+int[][] getIntervals() Returns a summary of the integers in the stream
+currently as a list of disjoint intervals [start_i, end_i].
+The answer should be sorted by start_i.
+
+Constraints:
+0 <= value <= 104
+At most 3 * 104 calls will be made to addNum and getIntervals.
+At most 102 calls will be made to getIntervals.
+
+Follow up: What if there are lots of merges and the number of disjoint
+intervals is small compared to the size of the data stream?
+*/
+struct SummaryRanges {
+    ranges: Vec<Vec<i32>>,
+}
+use std::cmp;
+impl SummaryRanges {
+    fn new() -> Self {
+        SummaryRanges {
+            ranges: Vec::with_capacity(3 * 104),
+        }
+    }
+
+    fn add_num(&mut self, value: i32) {
+        let mut added = false;
+        let mut new_ranges = Vec::<Vec<i32>>::with_capacity(self.ranges.len() + 1);
+        let mut it = self.ranges.iter().peekable();
+        let is_included = |elem: i32, bounds: &Vec<i32>| -> bool {
+            return elem >= bounds[0] && elem <= bounds[1];
+        };
+        let is_just_outside = |elem: i32, bounds: &Vec<i32>| -> bool {
+            return elem == bounds[0] - 1 || elem == bounds[1] + 1;
+        };
+        loop {
+            match (it.next(), it.peek(), added) {
+                (None, _, false) => {
+                    new_ranges.push(vec![value, value]);
+                    break;
+                }
+                (None, _, true) => {
+                    break;
+                }
+                (Some(curr_elem), _, true) => new_ranges.push(curr_elem.to_vec()),
+                (Some(curr_elem), next, false) => {
+                    if is_included(value, &curr_elem) {
+                        new_ranges.push(curr_elem.to_vec());
+                        added = true;
+                    } else if next != None
+                        && is_just_outside(value, &curr_elem)
+                        && is_just_outside(value, &next.unwrap())
+                    {
+                        new_ranges.push(vec![curr_elem[0], next.unwrap()[1]]);
+                        added = true;
+                        it.next();
+                    } else if is_just_outside(value, &curr_elem) {
+                        new_ranges.push(vec![
+                            cmp::min(curr_elem[0], value),
+                            cmp::max(curr_elem[1], value),
+                        ]);
+                        added = true;
+                    } else if value < curr_elem[0] - 1 {
+                        new_ranges.push(vec![value, value]);
+                        new_ranges.push(curr_elem.to_vec());
+                        added = true;
+                    } else {
+                        new_ranges.push(curr_elem.to_vec());
+                    }
+                }
+            }
+        }
+        self.ranges = new_ranges;
+    }
+
+    fn get_intervals(&self) -> Vec<Vec<i32>> {
+        self.ranges.clone()
+    }
+
+    fn test() {
+        let mut obj = SummaryRanges::new();
+        obj.add_num(1); // arr = [1]
+        assert_eq!(obj.get_intervals(), vec![vec![1, 1]]); // return [[1, 1]]
+        obj.add_num(3); // arr = [1, 3]
+        assert_eq!(obj.get_intervals(), vec![vec![1, 1], vec![3, 3]]); // return [[1, 1], [3, 3]]
+        obj.add_num(7); // arr = [1, 3, 7]
+        assert_eq!(
+            obj.get_intervals(),
+            vec![vec![1, 1], vec![3, 3], vec![7, 7]]
+        ); // return [[1, 1], [3, 3], [7, 7]]
+        obj.add_num(2); // arr = [1, 2, 3, 7]
+        assert_eq!(obj.get_intervals(), vec![vec![1, 3], vec![7, 7]]); // return [[1, 3], [7, 7]]
+        obj.add_num(6); // arr = [1, 2, 3, 6, 7]
+        assert_eq!(obj.get_intervals(), vec![vec![1, 3], vec![6, 7]]); // return [[1, 3], [6, 7]]
+    }
+}
+
 fn main() {
     println!("KthLargest tests");
     KthLargest::test();
@@ -428,4 +526,6 @@ fn main() {
     SlowStreamChecker::test();
     println!("FastStreamChecker tests");
     FastStreamChecker::test();
+    println!("SummaryRanges tests");
+    SummaryRanges::test();
 }

@@ -146,6 +146,14 @@ impl Board {
 
 struct Simulation {
     world: Box<Board>,
+    coordinates: Vec<(usize, usize)>,
+}
+
+#[derive(Clone)]
+enum ActionOnCell {
+    Kill,
+    Revive,
+    Noop,
 }
 
 impl Simulation {
@@ -153,31 +161,65 @@ impl Simulation {
         for coord in initial_configuration {
             board.set_alive(coord);
         }
-        Self { world: board }
+
+        let mut _coordinates: Vec<(usize, usize)> = Vec::with_capacity(board.rows * board.cols);
+        for r in 0..board.rows {
+            for c in 0..board.cols {
+                _coordinates.push((r, c));
+            }
+        }
+
+        Self {
+            world: board,
+            coordinates: _coordinates,
+        }
     }
+
+    fn apply_laws(
+        &self,
+        grid_state: &Vec<Vec<bool>>,
+        coordinates: &Vec<(usize, usize)>,
+        grid_actions: &mut Vec<Vec<ActionOnCell>>,
+    ) {
+        coordinates.iter().for_each(|(r, c)| {
+            let curr_coord = Coords2D::new(*r, *c);
+            let neighbors = self.world.get_neighbors(curr_coord);
+            let is_alive = Board::is_alive(&grid_state, curr_coord);
+            let mut num_of_alive_neighbors: usize = 0;
+            for neighbor in neighbors {
+                let is_neighbor_alive: bool = Board::is_alive(&grid_state, neighbor);
+                if is_neighbor_alive {
+                    num_of_alive_neighbors += 1;
+                }
+            }
+            if is_alive {
+                if !(2..=3).contains(&num_of_alive_neighbors) {
+                    grid_actions[*r][*c] = ActionOnCell::Kill;
+                }
+                //else it stays alive
+            } else if num_of_alive_neighbors == 3 {
+                grid_actions[*r][*c] = ActionOnCell::Revive;
+            }
+            //else remains dead
+        });
+    }
+
     pub fn evolve(&mut self) {
         let grid_state: Vec<Vec<bool>> = self.world.grid_state.clone();
-        for r in 0..self.world.rows {
-            for c in 0..self.world.cols {
-                let curr_coord = Coords2D::new(r, c);
-                let neighbors = self.world.get_neighbors(curr_coord);
-                let is_alive = Board::is_alive(&grid_state, curr_coord);
-                let mut num_of_alive_neighbors: usize = 0;
-                for neighbor in neighbors {
-                    let is_neighbor_alive: bool = Board::is_alive(&grid_state, neighbor);
-                    if is_neighbor_alive {
-                        num_of_alive_neighbors += 1;
-                    }
+        let mut grid_actions: Vec<Vec<ActionOnCell>> =
+            vec![vec![ActionOnCell::Noop; self.world.cols]; self.world.rows];
+
+        self.apply_laws(&grid_state, &self.coordinates, &mut grid_actions);
+
+        for (r, c) in self.coordinates.iter() {
+            match grid_actions[*r][*c] {
+                ActionOnCell::Kill => {
+                    self.world.set_dead(Coords2D::new(*r, *c));
                 }
-                if is_alive {
-                    if !(2..=3).contains(&num_of_alive_neighbors) {
-                        self.world.set_dead(curr_coord);
-                    }
-                    //else it stays alive
-                } else if num_of_alive_neighbors == 3 {
-                    self.world.set_alive(curr_coord);
+                ActionOnCell::Revive => {
+                    self.world.set_alive(Coords2D::new(*r, *c));
                 }
-                //else remains dead
+                ActionOnCell::Noop => {}
             }
         }
     }
@@ -192,21 +234,26 @@ impl State for Simulation {
 fn main() {
     let mut window = Window::new("Game of life");
 
+    let pixel_size = 3.8;
+    let resolution = 300;
+    let n_r = resolution;
+    let n_c = resolution;
+
     window.set_light(Light::StickToCamera);
     let board: Box<Board> = Box::new(Board::new(
         &mut window,
-        1000,
-        1000,
-        20.0,
-        20.0,
+        n_r,
+        n_c,
+        pixel_size,
+        pixel_size,
         Vector3::<f32>::new(226.0 / 255.0, 135.0 / 255.0, 67.0 / 255.0),
         Vector3::<f32>::new(6.0 / 255.0, 57.0 / 255.0, 112.0 / 255.0),
     ));
 
     let mut initial_configuration: Vec<Coords2D> = vec![];
     let mut rng = rand::thread_rng();
-    for r in 0..1000 {
-        for c in 0..1000 {
+    for r in 0..n_r {
+        for c in 0..n_c {
             let random_float = rng.gen_range(0.0..=1.0);
             if random_float > 0.6 {
                 initial_configuration.push(Coords2D::new(r, c));
