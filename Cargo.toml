@@ -7,6 +7,8 @@ edition = "2021"
 kiss3d = "0.35"
 rand = "0.8.5"
 randomizer = "0.1.2"
+quill = "0.2.0"
+num-traits = "0.2.19"
 
 [[bin]]
 name = "conway"

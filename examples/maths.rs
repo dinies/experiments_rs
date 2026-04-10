@@ -190,7 +190,17 @@ Constraints:
 */
 mod primes {
     pub fn is_ugly(n: i32) -> bool {
-        return false;
+        if n <= 0 {
+            return false;
+        }
+        let mut num_left = n.clone();
+        let mut divisors_to_try = vec![5, 3, 2];
+        while let Some(div) = divisors_to_try.pop() {
+            while num_left % div == 0 {
+                num_left /= div;
+            }
+        }
+        return num_left == 1;
     }
     pub fn test() {
         assert_eq!(is_ugly(6), true);
@@ -199,6 +209,124 @@ mod primes {
     }
 }
 
+/**
+Smallest Integer Divisible by K
+Given a positive integer k, you need to find the length of the
+smallest positive integer n such that n is divisible by k,
+and n only contains the digit 1.
+
+Return the length of n. If there is no such n, return -1.
+
+Note: n may not fit in a 64-bit signed integer.
+
+Example 1:
+Input: k = 1
+Output: 1
+Explanation: The smallest answer is n = 1, which has length 1.
+
+Example 2:
+Input: k = 2
+Output: -1
+Explanation: There is no such positive integer n divisible by 2.
+
+Example 3:
+Input: k = 3
+Output: 3
+Explanation: The smallest answer is n = 111, which has length 3.
+
+Constraints:
+1 <= k <= 10^5
+*/
+
+pub mod smallest_divisible {
+    use num_traits::{Num, Zero};
+    fn cumsum<T: Num + Clone>(vec: Vec<T>) -> Vec<T> {
+        let mut result = Vec::<T>::with_capacity(vec.len());
+        let mut last_sum: T = Zero::zero();
+        for i in 0..vec.len() {
+            last_sum = last_sum + vec[i].clone();
+            result.push(last_sum.clone());
+        }
+        result
+    }
+    fn test_cumsum() {
+        let in_out_floats = vec![
+            (vec![1.0, 13.0, 4.0], vec![1.0, 14.0, 18.0]),
+            (vec![-1.0, 3.5, -2.5], vec![-1.0, 2.5, 0.0]),
+            (vec![0.0], vec![0.0]),
+            (vec![], vec![]),
+        ];
+        for (input, output) in in_out_floats {
+            assert_eq!(cumsum(input), output)
+        }
+        let in_out_integers = vec![
+            (vec![1, 5, 4, -1], vec![1, 6, 10, 9]),
+            (vec![0], vec![0]),
+            (vec![], vec![]),
+        ];
+        for (input, output) in in_out_integers {
+            assert_eq!(cumsum(input), output)
+        }
+    }
+
+    fn modular_pow(b: u64, e: u64, module: u64) -> u64 {
+        if module == 1 {
+            return 0u64;
+        }
+        let mut res = 1;
+        let mut base = b;
+        let mut exp = e;
+        base %= module;
+        while exp > 0 {
+            if exp % 2 == 1 {
+                res = (res * base) % module;
+            }
+            base = (base * base) % module;
+            exp /= 2;
+        }
+        res
+    }
+
+    fn test_modular_pow() {
+        assert_eq!(modular_pow(10, 23, 29), 11)
+    }
+
+    pub fn find(k: i32) -> i32 {
+        if k % 2 == 0 || k % 5 == 0 {
+            return -1;
+        }
+        let leftovers: Vec<u64> = (0..k)
+            .map(|i| modular_pow(10u64, i as u64, k as u64))
+            .collect();
+
+        let csum = cumsum(leftovers);
+        let remainders = csum.into_iter().map(|x| x % k as u64).collect::<Vec<_>>();
+        let mut found: Option<i32> = None;
+        remainders.into_iter().enumerate().for_each(|(idx, x)| {
+            if x == 0u64 && found.is_none() {
+                found = Some((idx + 1) as i32);
+            }
+        });
+        match found {
+            Some(idx) => idx,
+            None => -1,
+        }
+    }
+    fn test_find() {
+        assert_eq!(find(1), 1);
+        assert_eq!(find(2), -1);
+        assert_eq!(find(3), 3);
+        assert_eq!(find(29), 28);
+        assert_eq!(find(9989,), 4278);
+    }
+    pub fn test() {
+        test_cumsum();
+        test_modular_pow();
+        test_find();
+    }
+}
+
+#[allow(dead_code)]
 fn main() {
     println!("arithmetic_progression");
     arithmetic_progression::test();
@@ -208,4 +336,6 @@ fn main() {
     palindrome::test();
     println!("ugly number");
     primes::test();
+    println!("smallest_divisible");
+    smallest_divisible::test();
 }
