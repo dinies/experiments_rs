@@ -122,23 +122,33 @@ Constraints:
 
 Follow up: Could you solve it without converting the integer to a string?
  */
+mod core {
+    use num_traits::{FromPrimitive, Unsigned};
+    pub fn split_into_digits<T: Unsigned + FromPrimitive + Copy + std::cmp::PartialOrd>(
+        number: T,
+    ) -> Vec<T> {
+        let mut power = 0;
+        let mut digits: Vec<T> = Vec::new();
+        loop {
+            let divisor = T::from_u64(10u64.pow(power)).unwrap();
+            power += 1;
+            let magnitude = T::from_u64(10u64.pow(power)).unwrap();
+            digits.push(number % magnitude / divisor);
+            if number / magnitude < T::one() {
+                break;
+            }
+        }
+        digits
+    }
+}
 
 mod palindrome {
+    use super::core::split_into_digits;
     pub fn check(x: i32) -> bool {
         if x < 0 {
             return false;
         }
-        let mut power = 0;
-        let mut digits: Vec<i64> = Vec::new();
-        loop {
-            let divisor = 10i64.pow(power);
-            power += 1;
-            let magnitude = 10i64.pow(power);
-            digits.push(x as i64 % magnitude / divisor);
-            if x as i64 / magnitude < 1 {
-                break;
-            }
-        }
+        let digits: Vec<u64> = split_into_digits(u64::try_from(x).unwrap());
         let mut from_left = digits.clone().into_iter();
         let mut from_right = digits.into_iter().rev();
         loop {
@@ -325,6 +335,59 @@ pub mod smallest_divisible {
         test_find();
     }
 }
+/** Self-dividing numbers
+A self-dividing number is a number that is divisible by every digit it contains.
+
+For example, 128 is a self-dividing number because 128 % 1 == 0,
+128 % 2 == 0, and 128 % 8 == 0.
+A self-dividing number is not allowed to contain the digit zero.
+
+Given two integers left and right, return a list of all the
+self-dividing numbers in the range [left, right] (both inclusive).
+
+Example 1:
+Input: left = 1, right = 22
+Output: [1,2,3,4,5,6,7,8,9,11,12,15,22]
+
+Example 2:
+Input: left = 47, right = 85
+Output: [48,55,66,77]
+
+Constraints:
+1 <= left <= right <= 104
+*/
+
+mod self_dividing_numbers {
+    use super::core::split_into_digits;
+    fn is_self_dividing(n: i32) -> bool {
+        let digits: Vec<u32> =
+            split_into_digits(u32::try_from(if n < 0 { -n } else { n }).unwrap());
+        let mut it = digits.into_iter();
+        while let Some(digit) = it.next() {
+            if digit == 0 || n % digit as i32 != 0 {
+                return false;
+            }
+        }
+        return true;
+    }
+    pub fn find_in_range(left: i32, right: i32) -> Vec<i32> {
+        (left..=right).filter(|x| is_self_dividing(*x)).collect()
+    }
+    fn test_is_self_dividing() {
+        assert_eq!(is_self_dividing(128), true)
+    }
+    fn test_find_in_range() {
+        assert_eq!(
+            find_in_range(1, 22),
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 22]
+        );
+        assert_eq!(find_in_range(47, 85), vec![48, 55, 66, 77]);
+    }
+    pub fn test() {
+        test_is_self_dividing();
+        test_find_in_range();
+    }
+}
 
 #[allow(dead_code)]
 fn main() {
@@ -338,4 +401,6 @@ fn main() {
     primes::test();
     println!("smallest_divisible");
     smallest_divisible::test();
+    println!("self_dividing");
+    self_dividing_numbers::test();
 }
