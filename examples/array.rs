@@ -1,17 +1,13 @@
 //Letcoode problems on arrays
 
-use std::collections::HashMap;
+mod array_operations {
+    use std::collections::HashMap;
 
-use rand::random;
-
-struct Array {}
-
-impl Array {
     //Given an array of integers nums and an integer target, return indices
     //of the two numbers such that they add up to target.
     // You may assume that each input would have exactly one solution, and you
     // may not use the same element twice. You can return the answer in any order.
-    fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {
+    pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {
         let mut result = Vec::<i32>::new();
         //build a map { value -> [vec_indexes] }
         let mut map = HashMap::<i32, Vec<i32>>::new();
@@ -54,21 +50,21 @@ impl Array {
             let n1 = vec![2, 7, 11, 15];
             let t1 = 9;
             let y1 = vec![0, 1];
-            let r1 = Self::two_sum(n1, t1);
+            let r1 = two_sum(n1, t1);
             assert!(r1.eq(&y1) || r1.eq(&y1.into_iter().rev().collect::<Vec<_>>()));
         }
         {
             let n2 = vec![3, 2, 4];
             let t2 = 6;
             let y2 = vec![1, 2];
-            let r2 = Self::two_sum(n2, t2);
+            let r2 = two_sum(n2, t2);
             assert!(r2.eq(&y2) || r2.eq(&y2.into_iter().rev().collect::<Vec<_>>()));
         }
         {
             let n3 = vec![3, 3];
             let t3 = 6;
             let y3 = vec![0, 1];
-            let r3 = Self::two_sum(n3, t3);
+            let r3 = two_sum(n3, t3);
             assert!(r3.eq(&y3) || r3.eq(&y3.into_iter().rev().collect::<Vec<_>>()));
         }
     }
@@ -80,7 +76,7 @@ impl Array {
     // duplicates, return the number of unique elements k.
     // The first k elements of nums should contain the unique numbers in sorted
     // order. The remaining elements beyond index k - 1 can be ignored.
-    fn remove_duplicates(nums: &mut Vec<i32>) -> i32 {
+    pub fn remove_duplicates(nums: &mut Vec<i32>) -> i32 {
         let mut distance = nums.len();
         let mut i = 0;
         while i < distance {
@@ -93,12 +89,13 @@ impl Array {
         }
         return distance as i32;
     }
+    use rand::random;
     pub fn test_remove_duplicates() {
         {
             let mut n1 = vec![1, 1, 2];
             let y1 = vec![1, 2, random()];
             let z1 = 2;
-            let r1 = Self::remove_duplicates(&mut n1);
+            let r1 = remove_duplicates(&mut n1);
 
             assert_eq!(r1, z1);
             for i in 0..z1 as usize {
@@ -121,7 +118,7 @@ impl Array {
                 random(),
             ];
             let z2 = 5;
-            let r2 = Self::remove_duplicates(&mut n2);
+            let r2 = remove_duplicates(&mut n2);
 
             assert_eq!(r2, z2);
             for i in 0..z2 as usize {
@@ -130,58 +127,10 @@ impl Array {
         }
     }
 
-    // Given an integer numRows, return the first numRows of Pascal's triangle.
-    // In Pascal's triangle, each number is the sum of the two numbers directly above
-    fn generate_pascal_triangle(num_rows: i32) -> Vec<Vec<i32>> {
-        let mut triangle = Vec::<Vec<i32>>::new();
-        match num_rows {
-            0 => {}
-            1 => {
-                triangle.push(vec![1]);
-            }
-            2.. => {
-                triangle.push(vec![1]);
-                for _ in 2..=num_rows {
-                    let mut last_row: Vec<i32> = triangle
-                        .last()
-                        .expect("There is always an element in the vector at this point")
-                        .clone();
-                    last_row.insert(0, 0);
-                    last_row.push(0);
-                    let new_dim = last_row.len() - 1;
-                    let mut new_row = Vec::<i32>::with_capacity(new_dim);
-                    for i in 0..new_dim {
-                        new_row.push(last_row[i] + last_row[i + 1]);
-                    }
-                    triangle.push(new_row);
-                }
-            }
-            _ => {}
-        }
-        return triangle;
-    }
-    pub fn test_generate_pascal_triangle() {
-        {
-            let n1 = 5;
-            let y1 = vec![
-                vec![1],
-                vec![1, 1],
-                vec![1, 2, 1],
-                vec![1, 3, 3, 1],
-                vec![1, 4, 6, 4, 1],
-            ];
-            assert_eq!(Self::generate_pascal_triangle(n1), y1);
-        }
-        {
-            let n2 = 1;
-            let y2 = vec![vec![1]];
-            assert_eq!(Self::generate_pascal_triangle(n2), y2);
-        }
-    }
     // Given a non-negative integer x, return the square root of x rounded down
     // to the nearest integer. The returned integer should be non-negative as well.
     // You must not use any built-in exponent function or operator.
-    fn square_root(x: i32) -> i32 {
+    pub fn square_root(x: i32) -> i32 {
         match x {
             1 => {
                 return 1;
@@ -212,24 +161,23 @@ impl Array {
         {
             let x1 = 4;
             let y1 = 2;
-            assert_eq!(y1, Self::square_root(x1));
+            assert_eq!(y1, square_root(x1));
         }
         {
             let x2 = 8;
             let y2 = 2;
-            assert_eq!(y2, Self::square_root(x2));
+            assert_eq!(y2, square_root(x2));
         }
         {
             let x3 = 2147395599;
             let y3 = 46339;
-            assert_eq!(y3, Self::square_root(x3));
+            assert_eq!(y3, square_root(x3));
         }
     }
 }
 
 fn main() {
-    Array::test_two_sum();
-    Array::test_remove_duplicates();
-    Array::test_generate_pascal_triangle();
-    Array::test_square_root();
+    array_operations::test_two_sum();
+    array_operations::test_remove_duplicates();
+    array_operations::test_square_root();
 }

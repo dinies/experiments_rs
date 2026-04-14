@@ -389,6 +389,176 @@ mod self_dividing_numbers {
     }
 }
 
+/* Permutation Sequence
+The set [1, 2, 3, ..., n] contains a total of n! unique permutations.
+By listing and labeling all of the permutations in order, we get the
+following sequence for n = 3:
+
+"123"
+"132"
+"213"
+"231"
+"312"
+"321"
+Given n and k, return the kth permutation sequence.
+
+Example 1:
+Input: n = 3, k = 3
+Output: "213"
+
+Example 2:
+Input: n = 4, k = 9
+Output: "2314"
+
+Example 3:
+Input: n = 3, k = 1
+Output: "123"
+
+Constraints:
+1 <= n <= 9
+1 <= k <= n!
+*/
+mod permutation_sequence {
+    fn factorial(n: i32) -> Option<i32> {
+        if n < 0 {
+            return None;
+        }
+        if n == 0 {
+            return Some(1);
+        }
+        let mut curr_n = n;
+        let mut result = 1;
+        while curr_n > 0 {
+            result *= curr_n;
+            curr_n -= 1;
+        }
+        Some(result)
+    }
+    fn test_factorial() {
+        let in_out = vec![
+            (-1, None),
+            (0, Some(1)),
+            (1, Some(1)),
+            (2, Some(2)),
+            (3, Some(6)),
+            (4, Some(24)),
+            (5, Some(120)),
+            (6, Some(720)),
+            (7, Some(5040)),
+        ];
+        in_out
+            .into_iter()
+            .for_each(|(input, output)| assert_eq!(factorial(input), output));
+    }
+    pub fn get(n: i32, k: i32) -> String {
+        let mut current_perm: i32 = 0;
+        let mut stack: Vec<(Vec<i32>, Vec<i32>)> = vec![(Vec::new(), (1..=n).collect())];
+        while let Some(nums) = stack.pop() {
+            let inner_permutations_num = factorial(nums.1.len() as i32 - 1).unwrap();
+            for (outer_idx, &val) in nums.1.iter().enumerate() {
+                if current_perm + inner_permutations_num >= k {
+                    let mut curr_base = nums.0.clone();
+                    curr_base.push(val);
+                    if nums.1.len() == 1 && current_perm + inner_permutations_num == k {
+                        return curr_base
+                            .into_iter()
+                            .map(|number| char::from_digit(number as u32, 10).unwrap())
+                            .collect();
+                    }
+                    stack.push((
+                        curr_base,
+                        nums.1
+                            .clone()
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, elem)| (i, elem))
+                            .filter(|(inner_idx, _)| *inner_idx != outer_idx)
+                            .map(|(_, elem)| elem)
+                            .collect(),
+                    ));
+                    break;
+                } else {
+                    current_perm += inner_permutations_num;
+                }
+            }
+        }
+        String::from("")
+    }
+    pub fn test_get() {
+        assert_eq!(get(3, 3), String::from("213"));
+        assert_eq!(get(4, 9), String::from("2314"));
+        assert_eq!(get(3, 1), String::from("123"));
+    }
+    pub fn test() {
+        test_factorial();
+        test_get();
+    }
+}
+
+/* Pascal's triangle
+ Given an integer numRows, return the first numRows of Pascal's triangle.
+In Pascal's triangle, each number is the sum of the two numbers directly above it as shown:
+
+Example 1:
+Input: numRows = 5
+Output: [[1],[1,1],[1,2,1],[1,3,3,1],[1,4,6,4,1]]
+
+Example 2:
+Input: numRows = 1
+Output: [[1]]
+
+Constraints:
+1 <= numRows <= 30
+*/
+mod pascal_triangle {
+    fn generate(num_rows: i32) -> Vec<Vec<i32>> {
+        let mut triangle = Vec::<Vec<i32>>::new();
+        match num_rows {
+            0 => {}
+            1 => {
+                triangle.push(vec![1]);
+            }
+            2.. => {
+                triangle.push(vec![1]);
+                for _ in 2..=num_rows {
+                    let mut last_row: Vec<i32> = triangle
+                        .last()
+                        .expect("There is always an element in the vector at this point")
+                        .clone();
+                    last_row.insert(0, 0);
+                    last_row.push(0);
+                    let new_dim = last_row.len() - 1;
+                    let mut new_row = Vec::<i32>::with_capacity(new_dim);
+                    for i in 0..new_dim {
+                        new_row.push(last_row[i] + last_row[i + 1]);
+                    }
+                    triangle.push(new_row);
+                }
+            }
+            _ => {}
+        }
+        return triangle;
+    }
+    pub fn test() {
+        {
+            let n1 = 5;
+            let y1 = vec![
+                vec![1],
+                vec![1, 1],
+                vec![1, 2, 1],
+                vec![1, 3, 3, 1],
+                vec![1, 4, 6, 4, 1],
+            ];
+            assert_eq!(generate(n1), y1);
+        }
+        {
+            let n2 = 1;
+            let y2 = vec![vec![1]];
+            assert_eq!(generate(n2), y2);
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn main() {
     println!("arithmetic_progression");
@@ -403,4 +573,8 @@ fn main() {
     smallest_divisible::test();
     println!("self_dividing");
     self_dividing_numbers::test();
+    println!("permutation_sequence");
+    permutation_sequence::test();
+    println!("pascal_triangle");
+    pascal_triangle::test();
 }
