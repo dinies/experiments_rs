@@ -198,274 +198,240 @@ impl RandomizedCollection {
    It is guaranteed that for each call to dec, key is existing in the data structure.
    At most 5 * 10^4 calls will be made to inc, dec, getMaxKey, and getMinKey.
 */
-use std::cell::RefCell;
-use std::collections::LinkedList;
-use std::rc::Rc;
-use std::rc::Weak;
+mod all_one {
 
-struct TrieNode {
-    parent: RefCell<Weak<TrieNode>>,
-    children: RefCell<HashMap<char, Rc<TrieNode>>>,
-    counter: RefCell<Option<u16>>,
-}
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    use std::collections::LinkedList;
+    use std::rc::Rc;
+    use std::rc::Weak;
 
-impl TrieNode {
-    fn new(node_parent: Weak<TrieNode>) -> Self {
-        TrieNode {
-            parent: RefCell::new(node_parent),
-            children: RefCell::new(HashMap::new()),
-            counter: RefCell::new(None),
+    pub struct TrieNode {
+        parent: RefCell<Weak<TrieNode>>,
+        children: RefCell<HashMap<char, Rc<TrieNode>>>,
+        counter: RefCell<Option<u16>>,
+    }
+
+    impl TrieNode {
+        fn new(node_parent: Weak<TrieNode>) -> Self {
+            TrieNode {
+                parent: RefCell::new(node_parent),
+                children: RefCell::new(HashMap::new()),
+                counter: RefCell::new(None),
+            }
         }
-    }
-    fn new_root() -> Self {
-        TrieNode {
-            parent: RefCell::new(Weak::new()),
-            children: RefCell::new(HashMap::new()),
-            counter: RefCell::new(None),
+        fn new_root() -> Self {
+            TrieNode {
+                parent: RefCell::new(Weak::new()),
+                children: RefCell::new(HashMap::new()),
+                counter: RefCell::new(None),
+            }
         }
-    }
-    fn change_parent(&self, parent: Rc<TrieNode>) {
-        *self.parent.borrow_mut() = Rc::downgrade(&parent);
-    }
-
-    fn make_orphan(&self) {
-        *self.parent.borrow_mut() = Weak::new();
-    }
-
-    fn has_child(&self, x: char) -> bool {
-        return self.children.borrow().contains_key(&x);
-    }
-
-    fn get_child(&self, x: char) -> Option<Rc<TrieNode>> {
-        if let Some(child) = self.children.borrow().get(&x) {
-            return Some(Rc::clone(child));
+        fn change_parent(&self, parent: Rc<TrieNode>) {
+            *self.parent.borrow_mut() = Rc::downgrade(&parent);
         }
-        return None;
-    }
 
-    fn get_parent(&self) -> Option<Rc<TrieNode>> {
-        return self.parent.borrow().upgrade();
-    }
-
-    fn remove_child(&self, label: char) -> bool {
-        if self.has_child(label) {
-            self.children.borrow_mut().remove(&label);
-            return true;
+        fn make_orphan(&self) {
+            *self.parent.borrow_mut() = Weak::new();
         }
-        return false;
-    }
 
-    fn add_child(&self, label: char, child: Rc<TrieNode>) -> bool {
-        if self.has_child(label) {
+        fn has_child(&self, x: char) -> bool {
+            return self.children.borrow().contains_key(&x);
+        }
+
+        fn get_child(&self, x: char) -> Option<Rc<TrieNode>> {
+            if let Some(child) = self.children.borrow().get(&x) {
+                return Some(Rc::clone(child));
+            }
+            return None;
+        }
+
+        fn get_parent(&self) -> Option<Rc<TrieNode>> {
+            return self.parent.borrow().upgrade();
+        }
+
+        fn remove_child(&self, label: char) -> bool {
+            if self.has_child(label) {
+                self.children.borrow_mut().remove(&label);
+                return true;
+            }
             return false;
-        } else {
-            self.children.borrow_mut().insert(label, child);
-            return true;
         }
-    }
 
-    fn get_num_children(&self) -> usize {
-        self.children.borrow().iter().len()
-    }
-
-    fn inc_counter(&self) {
-        let mut counter = self.counter.borrow_mut();
-        if counter.is_some() {
-            *counter = Some(counter.unwrap() + 1u16);
-        } else {
-            *counter = Some(1u16);
-        }
-    }
-
-    fn dec_counter(&self) {
-        let mut counter = self.counter.borrow_mut();
-        if counter.is_some() {
-            let num = counter.unwrap();
-            if num == 1u16 {
-                *counter = None;
+        fn add_child(&self, label: char, child: Rc<TrieNode>) -> bool {
+            if self.has_child(label) {
+                return false;
             } else {
-                *counter = Some(num - 1u16);
+                self.children.borrow_mut().insert(label, child);
+                return true;
             }
         }
-    }
 
-    fn get_counter(&self) -> Option<u16> {
-        return *self.counter.borrow();
-    }
-
-    fn test_basic() {
-        let dad = Rc::new(TrieNode::new(Weak::new()));
-        let child = Rc::new(TrieNode::new(Rc::downgrade(&dad)));
-        dad.children.borrow_mut().insert('c', Rc::clone(&child));
-        dad.children.borrow_mut().remove(&'c');
-        *child.parent.borrow_mut() = Weak::new();
-        {
-            let mum = Rc::new(TrieNode::new(Weak::new()));
-            *child.parent.borrow_mut() = Rc::downgrade(&mum);
-            mum.children.borrow_mut().insert('c', Rc::clone(&child));
+        fn get_num_children(&self) -> usize {
+            self.children.borrow().iter().len()
         }
-    }
-    fn test_api() {
-        let dad = Rc::new(TrieNode::new_root());
-        let child = Rc::new(TrieNode::new(Rc::downgrade(&dad)));
-        assert!(dad.add_child('c', Rc::clone(&child)));
-        assert!(dad.get_child('c').is_some());
-        assert!(dad.remove_child('c'));
-        assert!(dad.get_child('c').is_none());
-        child.make_orphan();
-        {
-            let mum = Rc::new(TrieNode::new_root());
-            assert_eq!(mum.get_num_children(), 0);
-            child.change_parent(Rc::clone(&mum));
-            assert!(mum.get_child('c').is_none());
-            assert!(mum.add_child('c', Rc::clone(&child)));
 
-            assert_eq!(mum.get_num_children(), 1);
-            assert!(mum.get_child('c').is_some());
-
-            child.inc_counter();
-            child.inc_counter();
-            assert_eq!(child.get_counter(), Some(2u16));
-            child.dec_counter();
-            child.dec_counter();
-            assert_eq!(child.get_counter(), None);
-        }
-    }
-    fn test() {
-        TrieNode::test_basic();
-        TrieNode::test_api();
-    }
-}
-
-struct AllOne {
-    data: Rc<TrieNode>,
-    frequency: LinkedList<(u16, HashSet<String>)>,
-}
-
-impl AllOne {
-    fn new() -> Self {
-        AllOne {
-            data: Rc::new(TrieNode::new(Weak::new())),
-            frequency: LinkedList::new(),
-        }
-    }
-
-    fn add_word(trie: Rc<TrieNode>, word: String) -> u16 {
-        let mut cursor: Rc<TrieNode> = trie;
-        for letter in word.chars().into_iter() {
-            if !cursor.has_child(letter) {
-                let new_child = Rc::new(TrieNode::new(Rc::downgrade(&cursor)));
-                cursor.add_child(letter, new_child);
-            }
-            cursor = cursor.get_child(letter).unwrap();
-        }
-        cursor.inc_counter();
-        return cursor.get_counter().unwrap();
-    }
-
-    fn remove_word(trie: Rc<TrieNode>, word: String) -> Option<u16> {
-        let mut cursor: Rc<TrieNode> = trie;
-        for letter in word.chars().into_iter() {
-            if let Some(child) = cursor.get_child(letter) {
-                cursor = child;
+        fn inc_counter(&self) {
+            let mut counter = self.counter.borrow_mut();
+            if counter.is_some() {
+                *counter = Some(counter.unwrap() + 1u16);
             } else {
-                return None;
+                *counter = Some(1u16);
             }
         }
-        cursor.dec_counter();
-        let frequency = cursor.get_counter();
-        let mut removing: Option<char> = None;
-        for letter in word.chars().into_iter().rev() {
-            if cursor.get_counter().is_none() && cursor.get_num_children() == 0 {
-                removing = Some(letter);
-                cursor = cursor.get_parent().unwrap();
-            } else {
-                if removing.is_some() {
-                    cursor.remove_child(removing.unwrap());
+
+        fn dec_counter(&self) {
+            let mut counter = self.counter.borrow_mut();
+            if counter.is_some() {
+                let num = counter.unwrap();
+                if num == 1u16 {
+                    *counter = None;
+                } else {
+                    *counter = Some(num - 1u16);
                 }
-                return frequency;
             }
         }
-        return frequency;
+
+        fn get_counter(&self) -> Option<u16> {
+            return *self.counter.borrow();
+        }
+
+        fn test_basic() {
+            let dad = Rc::new(TrieNode::new(Weak::new()));
+            let child = Rc::new(TrieNode::new(Rc::downgrade(&dad)));
+            dad.children.borrow_mut().insert('c', Rc::clone(&child));
+            dad.children.borrow_mut().remove(&'c');
+            *child.parent.borrow_mut() = Weak::new();
+            {
+                let mum = Rc::new(TrieNode::new(Weak::new()));
+                *child.parent.borrow_mut() = Rc::downgrade(&mum);
+                mum.children.borrow_mut().insert('c', Rc::clone(&child));
+            }
+        }
+        fn test_api() {
+            let dad = Rc::new(TrieNode::new_root());
+            let child = Rc::new(TrieNode::new(Rc::downgrade(&dad)));
+            assert!(dad.add_child('c', Rc::clone(&child)));
+            assert!(dad.get_child('c').is_some());
+            assert!(dad.remove_child('c'));
+            assert!(dad.get_child('c').is_none());
+            child.make_orphan();
+            {
+                let mum = Rc::new(TrieNode::new_root());
+                assert_eq!(mum.get_num_children(), 0);
+                child.change_parent(Rc::clone(&mum));
+                assert!(mum.get_child('c').is_none());
+                assert!(mum.add_child('c', Rc::clone(&child)));
+
+                assert_eq!(mum.get_num_children(), 1);
+                assert!(mum.get_child('c').is_some());
+
+                child.inc_counter();
+                child.inc_counter();
+                assert_eq!(child.get_counter(), Some(2u16));
+                child.dec_counter();
+                child.dec_counter();
+                assert_eq!(child.get_counter(), None);
+            }
+        }
+        pub fn test() {
+            TrieNode::test_basic();
+            TrieNode::test_api();
+        }
     }
 
-    fn update_frequency(
-        frequency_list: &mut LinkedList<(u16, HashSet<String>)>,
-        old_freq: u16,
-        new_freq: u16,
-        key: String,
-    ) {
-        assert!(old_freq != new_freq);
-        let mut inserted_update = false;
+    pub trait StringsCountingStorage {
+        fn new() -> Self;
+        fn inc(&mut self, key: String);
+        fn dec(&mut self, key: String);
+        fn get_max_key(&self) -> String;
+        fn get_min_key(&self) -> String;
+    }
 
-        let mut new_frequency_list: LinkedList<(u16, HashSet<String>)> = LinkedList::new();
-        for (quantity, set) in frequency_list.into_iter() {
-            if *quantity == old_freq && old_freq > 0 {
-                set.remove(&key);
-                if set.is_empty() {
-                    continue;
+    use std::collections::HashSet;
+    pub struct AllOneSlow {
+        data: Rc<TrieNode>,
+        frequency: LinkedList<(u16, HashSet<String>)>,
+    }
+
+    impl AllOneSlow {
+        fn add_word(trie: Rc<TrieNode>, word: String) -> u16 {
+            let mut cursor: Rc<TrieNode> = trie;
+            for letter in word.chars().into_iter() {
+                if !cursor.has_child(letter) {
+                    let new_child = Rc::new(TrieNode::new(Rc::downgrade(&cursor)));
+                    cursor.add_child(letter, new_child);
                 }
-            } else if *quantity == new_freq && new_freq > 0 {
-                set.insert(key.clone());
-                inserted_update = true;
-            } else if *quantity > new_freq && new_freq > 0 {
+                cursor = cursor.get_child(letter).unwrap();
+            }
+            cursor.inc_counter();
+            return cursor.get_counter().unwrap();
+        }
+
+        fn remove_word(trie: Rc<TrieNode>, word: String) -> Option<u16> {
+            let mut cursor: Rc<TrieNode> = trie;
+            for letter in word.chars().into_iter() {
+                if let Some(child) = cursor.get_child(letter) {
+                    cursor = child;
+                } else {
+                    return None;
+                }
+            }
+            cursor.dec_counter();
+            let frequency = cursor.get_counter();
+            let mut removing: Option<char> = None;
+            for letter in word.chars().into_iter().rev() {
+                if cursor.get_counter().is_none() && cursor.get_num_children() == 0 {
+                    removing = Some(letter);
+                    cursor = cursor.get_parent().unwrap();
+                } else {
+                    if removing.is_some() {
+                        cursor.remove_child(removing.unwrap());
+                    }
+                    return frequency;
+                }
+            }
+            return frequency;
+        }
+
+        fn update_frequency(
+            frequency_list: &mut LinkedList<(u16, HashSet<String>)>,
+            old_freq: u16,
+            new_freq: u16,
+            key: String,
+        ) {
+            assert!(old_freq != new_freq);
+            let mut inserted_update = false;
+
+            let mut new_frequency_list: LinkedList<(u16, HashSet<String>)> = LinkedList::new();
+            for (quantity, set) in frequency_list.into_iter() {
+                if *quantity == old_freq && old_freq > 0 {
+                    set.remove(&key);
+                    if set.is_empty() {
+                        continue;
+                    }
+                } else if *quantity == new_freq && new_freq > 0 {
+                    set.insert(key.clone());
+                    inserted_update = true;
+                } else if *quantity > new_freq && new_freq > 0 {
+                    let mut new_set: HashSet<String> = HashSet::new();
+                    new_set.insert(key.clone());
+                    new_frequency_list.push_back((new_freq, new_set));
+                    inserted_update = true;
+                } else {
+                }
+                new_frequency_list.push_back((*quantity, set.clone()));
+            }
+            if !inserted_update && new_freq > 0 {
                 let mut new_set: HashSet<String> = HashSet::new();
                 new_set.insert(key.clone());
                 new_frequency_list.push_back((new_freq, new_set));
-                inserted_update = true;
-            } else {
             }
-            new_frequency_list.push_back((*quantity, set.clone()));
-        }
-        if !inserted_update && new_freq > 0 {
-            let mut new_set: HashSet<String> = HashSet::new();
-            new_set.insert(key.clone());
-            new_frequency_list.push_back((new_freq, new_set));
-        }
-        *frequency_list = new_frequency_list;
-    }
-
-    fn inc(&mut self, key: String) {
-        let new_freq = Self::add_word(Rc::clone(&self.data), key.clone());
-        Self::update_frequency(&mut self.frequency, new_freq - 1, new_freq, key);
-    }
-
-    fn dec(&mut self, key: String) {
-        let new_freq = Self::remove_word(Rc::clone(&self.data), key.clone());
-        match new_freq {
-            Some(num) => {
-                Self::update_frequency(&mut self.frequency, num + 1, num, key);
-            }
-            None => {
-                Self::update_frequency(&mut self.frequency, 1, 0, key);
-            }
+            *frequency_list = new_frequency_list;
         }
     }
-
-    fn get_max_key(&self) -> String {
-        match self.frequency.back() {
-            Some(elem) => {
-                return elem.1.iter().last().unwrap().to_string();
-            }
-            None => {
-                return String::from("");
-            }
-        }
-    }
-
-    fn get_min_key(&self) -> String {
-        match self.frequency.front() {
-            Some(elem) => {
-                return elem.1.iter().last().unwrap().to_string();
-            }
-            None => {
-                return String::from("");
-            }
-        }
-    }
-
-    fn test() {
-        let mut obj = AllOne::new();
+    fn simple_test<T: StringsCountingStorage>() {
+        let mut obj = T::new();
         obj.inc(String::from("hello"));
         obj.inc(String::from("hello"));
         assert_eq!(obj.get_max_key(), String::from("hello"));
@@ -477,6 +443,99 @@ impl AllOne {
         assert_eq!(obj.get_max_key(), String::from("hello"));
         assert_eq!(obj.get_min_key(), String::from("hello"));
     }
+
+    fn hard_test<T: StringsCountingStorage>() {
+        let mut obj = T::new();
+        let num_rand_strings = 10000;
+        let num_char_in_word = 10;
+        let fixed_string = String::from("njzkrefyoc");
+        use randomizer::Randomizer;
+        let random_strings: Vec<String> = (0..num_rand_strings)
+            .into_iter()
+            .map(|_| {
+                Randomizer::ALPHABETICAL_LOWER(num_char_in_word)
+                    .string()
+                    .unwrap()
+            })
+            .collect();
+        use std::time::Instant;
+        let now = Instant::now();
+        random_strings.iter().for_each(|s| obj.inc(s.clone()));
+        println!("Elapsed after inc(random_string) : {:.2?}", now.elapsed());
+        (0..10000).for_each(|_| obj.inc(fixed_string.clone()));
+        println!("Elapsed after inc(fixed_string) : {:.2?}", now.elapsed());
+        random_strings
+            .iter()
+            .take(10)
+            .for_each(|s| obj.dec(s.clone()));
+        println!("Elapsed after dec() : {:.2?}", now.elapsed());
+        (0..14995).for_each(|_| {
+            obj.get_max_key();
+        });
+        (0..14995).for_each(|_| {
+            obj.get_min_key();
+        });
+    }
+
+    pub fn test<T: StringsCountingStorage>() {
+        simple_test::<T>();
+        hard_test::<T>();
+    }
+
+    impl StringsCountingStorage for AllOneSlow {
+        fn new() -> Self {
+            AllOneSlow {
+                data: Rc::new(TrieNode::new(Weak::new())),
+                frequency: LinkedList::new(),
+            }
+        }
+        fn inc(&mut self, key: String) {
+            let new_freq = Self::add_word(Rc::clone(&self.data), key.clone());
+            Self::update_frequency(&mut self.frequency, new_freq - 1, new_freq, key);
+        }
+
+        fn dec(&mut self, key: String) {
+            let new_freq = Self::remove_word(Rc::clone(&self.data), key.clone());
+            match new_freq {
+                Some(num) => {
+                    Self::update_frequency(&mut self.frequency, num + 1, num, key);
+                }
+                None => {
+                    Self::update_frequency(&mut self.frequency, 1, 0, key);
+                }
+            }
+        }
+
+        fn get_max_key(&self) -> String {
+            match self.frequency.back() {
+                Some(elem) => {
+                    return elem.1.iter().last().unwrap().to_string();
+                }
+                None => {
+                    return String::from("");
+                }
+            }
+        }
+
+        fn get_min_key(&self) -> String {
+            match self.frequency.front() {
+                Some(elem) => {
+                    return elem.1.iter().last().unwrap().to_string();
+                }
+                None => {
+                    return String::from("");
+                }
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub struct AllOneFast {
+        str_to_freq: HashMap<String, u32>,
+        freq_to_str: HashMap<u32, String>,
+
+        frequency: LinkedList<(u16, HashSet<String>)>,
+    }
 }
 
 fn main() {
@@ -486,7 +545,7 @@ fn main() {
     RandomizedCollection::test();
 
     println!("TrieNode");
-    TrieNode::test();
-    println!("AllOne");
-    AllOne::test();
+    all_one::TrieNode::test();
+    println!("AllOneSlow");
+    all_one::test::<all_one::AllOneSlow>();
 }

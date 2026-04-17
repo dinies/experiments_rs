@@ -419,7 +419,29 @@ Constraints:
 1 <= k <= n!
 */
 mod permutation_sequence {
-    fn factorial(n: i32) -> Option<i32> {
+
+    use num_traits::Signed;
+    pub fn factorial<
+        T: Signed + std::cmp::PartialOrd + std::ops::SubAssign + std::ops::MulAssign + Copy,
+    >(
+        n: T,
+    ) -> Option<T> {
+        if n < T::zero() {
+            return None;
+        }
+        if n == T::zero() {
+            return Some(T::one());
+        }
+        let mut curr_n = n;
+        let mut result = T::one();
+        while curr_n > T::zero() {
+            result *= curr_n;
+            curr_n -= T::one();
+        }
+        Some(result)
+    }
+    #[allow(dead_code)]
+    fn factorial_i32(n: i32) -> Option<i32> {
         if n < 0 {
             return None;
         }
@@ -434,6 +456,7 @@ mod permutation_sequence {
         }
         Some(result)
     }
+
     fn test_factorial() {
         let in_out = vec![
             (-1, None),
@@ -450,7 +473,7 @@ mod permutation_sequence {
             .into_iter()
             .for_each(|(input, output)| assert_eq!(factorial(input), output));
     }
-    pub fn get(n: i32, k: i32) -> String {
+    pub fn get_kth_permutation(n: i32, k: i32) -> String {
         let mut current_perm: i32 = 0;
         let mut stack: Vec<(Vec<i32>, Vec<i32>)> = vec![(Vec::new(), (1..=n).collect())];
         while let Some(nums) = stack.pop() {
@@ -484,14 +507,89 @@ mod permutation_sequence {
         }
         String::from("")
     }
-    pub fn test_get() {
-        assert_eq!(get(3, 3), String::from("213"));
-        assert_eq!(get(4, 9), String::from("2314"));
-        assert_eq!(get(3, 1), String::from("123"));
+    pub fn get_all_permutations(n: i32) -> Vec<Vec<i32>> {
+        let expected_perm_num = factorial(n as isize).unwrap() as usize;
+        let mut result = Vec::with_capacity(expected_perm_num);
+        let mut stack: Vec<(Vec<i32>, Vec<i32>)> = vec![(Vec::new(), (1..=n).collect())];
+        while let Some(nums) = stack.pop() {
+            for (outer_idx, &val) in nums.1.iter().enumerate() {
+                let mut curr_base = nums.0.clone();
+                curr_base.push(val);
+                if nums.1.len() == 1 {
+                    result.push(curr_base.into_iter().collect());
+                    continue;
+                }
+                stack.push((
+                    curr_base,
+                    nums.1
+                        .clone()
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, elem)| (i, elem))
+                        .filter(|(inner_idx, _)| *inner_idx != outer_idx)
+                        .map(|(_, elem)| elem)
+                        .collect(),
+                ));
+            }
+        }
+        result
+    }
+    fn test_get_all_permutations() {
+        let perms_1 = vec![vec![1]];
+        assert_eq!(get_all_permutations(1), perms_1);
+        let perms_2 = vec![vec![2, 1], vec![1, 2]];
+        let _ = get_all_permutations(2)
+            .into_iter()
+            .map(|x| assert!(perms_2.iter().any(|y| *y == x)));
+        let perms_3 = vec![
+            vec![3, 2, 1],
+            vec![2, 3, 1],
+            vec![2, 1, 3],
+            vec![1, 3, 2],
+            vec![1, 2, 3],
+        ];
+        let _ = get_all_permutations(3)
+            .into_iter()
+            .map(|x| assert!(perms_3.iter().any(|y| *y == x)));
+        let perms_4 = vec![
+            vec![1, 2, 3, 4],
+            vec![1, 2, 4, 3],
+            vec![1, 3, 2, 4],
+            vec![1, 3, 4, 2],
+            vec![1, 4, 2, 3],
+            vec![1, 4, 3, 2],
+            vec![2, 1, 3, 4],
+            vec![2, 1, 4, 3],
+            vec![2, 3, 1, 4],
+            vec![2, 3, 4, 1],
+            vec![2, 4, 1, 3],
+            vec![2, 4, 3, 1],
+            vec![3, 1, 2, 4],
+            vec![3, 1, 4, 2],
+            vec![3, 2, 1, 4],
+            vec![3, 2, 4, 1],
+            vec![3, 4, 1, 2],
+            vec![3, 4, 2, 1],
+            vec![4, 1, 2, 3],
+            vec![4, 1, 3, 2],
+            vec![4, 2, 1, 3],
+            vec![4, 2, 3, 1],
+            vec![4, 3, 1, 2],
+            vec![4, 3, 2, 1],
+        ];
+        let _ = get_all_permutations(4)
+            .into_iter()
+            .map(|x| assert!(perms_4.iter().any(|y| *y == x)));
+    }
+    pub fn test_get_kth_permutation() {
+        assert_eq!(get_kth_permutation(3, 3), String::from("213"));
+        assert_eq!(get_kth_permutation(4, 9), String::from("2314"));
+        assert_eq!(get_kth_permutation(3, 1), String::from("123"));
     }
     pub fn test() {
         test_factorial();
-        test_get();
+        test_get_all_permutations();
+        test_get_kth_permutation();
     }
 }
 
@@ -559,6 +657,187 @@ mod pascal_triangle {
     }
 }
 
+/** Number of Ways to Rearrange Sticks With K Sticks Visible
+There are n uniquely-sized sticks whose lengths are integers
+from 1 to n. You want to arrange the sticks such that exactly
+k sticks are visible from the left. A stick is visible from
+the left if there are no longer sticks to the left of it.
+For example, if the sticks are arranged [1,3,2,5,4], then
+the sticks with lengths 1, 3, and 5 are visible from the left.
+Given n and k, return the number of such arrangements.
+Since the answer may be large, return it modulo 10^9 + 7.
+
+Example 1:
+Input: n = 3, k = 2
+Output: 3
+Explanation: [1,3,2], [2,3,1], and [2,1,3] are the only
+arrangements such that exactly 2 sticks are visible.
+The visible sticks are underlined.
+
+Example 2:
+Input: n = 5, k = 5
+Output: 1
+Explanation: [1,2,3,4,5] is the only arrangement such
+that all 5 sticks are visible.
+The visible sticks are underlined.
+
+Example 3:
+Input: n = 20, k = 11
+Output: 647427950
+Explanation: There are 647427950 (mod 10^9 + 7) ways to
+rearrange the sticks such that exactly 11 sticks are visible.
+
+Constraints:
+1 <= n <= 1000
+1 <= k <= n
+
+Pattern finding:
+ (( 1 , 1 ), 1) :[1]
+ (( 2 , 1 ), 1) :[2,1]
+ (( 2 , 2 ), 1) :[1,2]
+ (( 3 , 1 ), 1) :[3,2,1]
+ (( 3 , 2 ), 3) :[2,3,1];[2,1,3];[1,3,2]
+ (( 3 , 3 ), 1) :[1,2,3]
+ (( 4 , 1 ), 6 ) : &18, &19, &20, &21, &22, &23
+ (( 4 , 2 ), 11) : &4, &5, &7, &10, &11, &12, &13, &14, &15, &16, &17
+ (( 4 , 3 ), 6 ) : &1, &2, &3, &6, &8, &9
+ (( 4 , 4 ), 1 ) : &0
+ Perms n=4:
+ 0: [1,2,3,4] & = 4
+ 1: [1,2,4,3] & = 3
+ 2: [1,3,2,4] & = 3
+ 3: [1,3,4,2] & = 3
+ 4: [1,4,2,3] & = 2
+ 5: [1,4,3,2] & = 2
+ 6: [2,1,3,4] & = 3
+ 7: [2,1,4,3] & = 2
+ 8: [2,3,1,4] & = 3
+ 9: [2,3,4,1] & = 3
+10: [2,4,1,3] & = 2
+11: [2,4,3,1] & = 2
+12: [3,1,2,4] & = 2
+13: [3,1,4,2] & = 2
+14: [3,2,1,4] & = 2
+15: [3,2,4,1] & = 2
+16: [3,4,1,2] & = 2
+17: [3,4,2,1] & = 2
+18: [4,1,2,3] & = 1
+19: [4,1,3,2] & = 1
+20: [4,2,1,3] & = 1
+21: [4,2,3,1] & = 1
+22: [4,3,1,2] & = 1
+23: [4,3,2,1] & = 1
+ */
+mod rearrange_sticks {
+    fn count_visible_sticks(sticks: &Vec<i32>) -> i32 {
+        let mut count = 0;
+        let mut previous_visible_stick = i32::MIN;
+        sticks.iter().for_each(|stick| {
+            if stick > &previous_visible_stick {
+                count += 1;
+                previous_visible_stick = *stick;
+            }
+        });
+        return count;
+    }
+    fn test_count_visible_sticks() {
+        let in_out = vec![
+            (vec![-1, 1], 2),
+            (vec![1, 1], 1),
+            (vec![2, 1], 1),
+            (vec![8, 1], 1),
+            (vec![5, 8], 2),
+            (vec![5, 8, 3, 4, 9, 1, 7, 8], 3),
+        ];
+        in_out
+            .into_iter()
+            .for_each(|(input, output)| assert_eq!(count_visible_sticks(&input), output));
+    }
+    fn has_n_visible_sticks(sticks: &Vec<i32>, n: i32) -> bool {
+        let mut count = 0;
+        let mut previous_visible_stick = i32::MIN;
+        for stick in sticks.iter() {
+            if stick > &previous_visible_stick {
+                count += 1;
+                previous_visible_stick = *stick;
+                if count > n {
+                    return false;
+                }
+            }
+        }
+        return count == n;
+    }
+    fn test_has_n_visible_sticks() {
+        let ins_out = vec![
+            ((vec![-1, 1], 2), true),
+            ((vec![-1, 1], 1), false),
+            ((vec![1, 1], 1), true),
+            ((vec![2, 1], 1), true),
+            ((vec![8, 1], 2), false),
+            ((vec![8, 1], 1), true),
+            ((vec![5, 8], 2), true),
+            ((vec![5, 8, 3, 4, 9, 1, 7, 8], 7), false),
+            ((vec![5, 8, 3, 4, 9, 1, 7, 8], 3), true),
+        ];
+        ins_out.into_iter().for_each(|(inputs, output)| {
+            assert_eq!(has_n_visible_sticks(&inputs.0, inputs.1), output)
+        });
+    }
+    // use super::permutation_sequence::factorial;
+    pub fn rearrange(n: i32, k: i32) -> i32 {
+        // let expected_perm_num = factorial(n as isize).unwrap() as usize;
+        // let mut curr_progress: usize = 0;
+        let mut counter: i64 = 0;
+        let mut stack: Vec<(Vec<i32>, Vec<i32>)> = vec![(Vec::new(), (1..=n).collect())];
+        while let Some(nums) = stack.pop() {
+            // let inner_permutations_num = factorial(nums.1.len() as isize - 1).unwrap() as usize;
+            for (outer_idx, &val) in nums.1.iter().enumerate() {
+                let mut curr_base = nums.0.clone();
+                curr_base.push(val);
+                if nums.1.len() == 1 {
+                    // curr_progress += inner_permutations_num;
+                    if has_n_visible_sticks(&curr_base, k) {
+                        counter += 1;
+                    }
+                    continue;
+                }
+
+                if count_visible_sticks(&curr_base) > k {
+                    // curr_progress += inner_permutations_num;
+                    continue;
+                }
+                stack.push((
+                    curr_base,
+                    nums.1
+                        .clone()
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, elem)| (i, elem))
+                        .filter(|(inner_idx, _)| *inner_idx != outer_idx)
+                        .map(|(_, elem)| elem)
+                        .collect(),
+                ));
+                // println!(
+                //     "Current progress %{}",
+                //     curr_progress * 100 / expected_perm_num
+                // );
+            }
+        }
+        return (counter % (10i64.pow(9) + 7)).try_into().unwrap();
+    }
+    fn test_rearrange() {
+        let ins_out = vec![((3, 2), 3), ((5, 5), 1) /* ((20, 11), 647427950) */];
+        ins_out
+            .into_iter()
+            .for_each(|(inputs, output)| assert_eq!(rearrange(inputs.0, inputs.1), output));
+    }
+    pub fn test() {
+        test_count_visible_sticks();
+        test_has_n_visible_sticks();
+        test_rearrange();
+    }
+}
+
 #[allow(dead_code)]
 fn main() {
     println!("arithmetic_progression");
@@ -577,4 +856,6 @@ fn main() {
     permutation_sequence::test();
     println!("pascal_triangle");
     pascal_triangle::test();
+    println!("rearrange_sticks");
+    rearrange_sticks::test();
 }
