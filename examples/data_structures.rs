@@ -340,6 +340,42 @@ mod all_one {
         }
     }
 
+    fn update_frequency(
+        frequency_list: &mut LinkedList<(u16, HashSet<String>)>,
+        old_freq: u16,
+        new_freq: u16,
+        key: String,
+    ) {
+        assert!(old_freq != new_freq);
+        let mut inserted_update = false;
+
+        let mut new_frequency_list: LinkedList<(u16, HashSet<String>)> = LinkedList::new();
+        for (quantity, set) in frequency_list.into_iter() {
+            if *quantity == old_freq && old_freq > 0 {
+                set.remove(&key);
+                if set.is_empty() {
+                    continue;
+                }
+            } else if *quantity == new_freq && new_freq > 0 {
+                set.insert(key.clone());
+                inserted_update = true;
+            } else if *quantity > new_freq && new_freq > 0 {
+                let mut new_set: HashSet<String> = HashSet::new();
+                new_set.insert(key.clone());
+                new_frequency_list.push_back((new_freq, new_set));
+                inserted_update = true;
+            } else {
+            }
+            new_frequency_list.push_back((*quantity, set.clone()));
+        }
+        if !inserted_update && new_freq > 0 {
+            let mut new_set: HashSet<String> = HashSet::new();
+            new_set.insert(key.clone());
+            new_frequency_list.push_back((new_freq, new_set));
+        }
+        *frequency_list = new_frequency_list;
+    }
+
     pub trait StringsCountingStorage {
         fn new() -> Self;
         fn inc(&mut self, key: String);
@@ -393,42 +429,6 @@ mod all_one {
             }
             return frequency;
         }
-
-        fn update_frequency(
-            frequency_list: &mut LinkedList<(u16, HashSet<String>)>,
-            old_freq: u16,
-            new_freq: u16,
-            key: String,
-        ) {
-            assert!(old_freq != new_freq);
-            let mut inserted_update = false;
-
-            let mut new_frequency_list: LinkedList<(u16, HashSet<String>)> = LinkedList::new();
-            for (quantity, set) in frequency_list.into_iter() {
-                if *quantity == old_freq && old_freq > 0 {
-                    set.remove(&key);
-                    if set.is_empty() {
-                        continue;
-                    }
-                } else if *quantity == new_freq && new_freq > 0 {
-                    set.insert(key.clone());
-                    inserted_update = true;
-                } else if *quantity > new_freq && new_freq > 0 {
-                    let mut new_set: HashSet<String> = HashSet::new();
-                    new_set.insert(key.clone());
-                    new_frequency_list.push_back((new_freq, new_set));
-                    inserted_update = true;
-                } else {
-                }
-                new_frequency_list.push_back((*quantity, set.clone()));
-            }
-            if !inserted_update && new_freq > 0 {
-                let mut new_set: HashSet<String> = HashSet::new();
-                new_set.insert(key.clone());
-                new_frequency_list.push_back((new_freq, new_set));
-            }
-            *frequency_list = new_frequency_list;
-        }
     }
     fn simple_test<T: StringsCountingStorage>() {
         let mut obj = T::new();
@@ -444,6 +444,19 @@ mod all_one {
         assert_eq!(obj.get_min_key(), String::from("hello"));
     }
 
+    fn medium_test<T: StringsCountingStorage>() {
+        let mut obj = T::new();
+        obj.inc(String::from("a"));
+        (0..3).for_each(|_| obj.inc(String::from("b")));
+        (0..6).for_each(|_| obj.inc(String::from("c")));
+        (0..8).for_each(|_| obj.inc(String::from("d")));
+        assert_eq!(obj.get_max_key(), String::from("d"));
+        assert_eq!(obj.get_min_key(), String::from("a"));
+        obj.inc(String::from("b"));
+        obj.dec(String::from("d"));
+        assert_eq!(obj.get_max_key(), String::from("d"));
+        assert_eq!(obj.get_min_key(), String::from("a"));
+    }
     fn hard_test<T: StringsCountingStorage>() {
         let mut obj = T::new();
         let num_rand_strings = 10000;
@@ -477,9 +490,12 @@ mod all_one {
         });
     }
 
-    pub fn test<T: StringsCountingStorage>() {
+    pub fn test<T: StringsCountingStorage>(stress_test: bool) {
         simple_test::<T>();
-        hard_test::<T>();
+        medium_test::<T>();
+        if stress_test {
+            hard_test::<T>();
+        }
     }
 
     impl StringsCountingStorage for AllOneSlow {
@@ -491,17 +507,17 @@ mod all_one {
         }
         fn inc(&mut self, key: String) {
             let new_freq = Self::add_word(Rc::clone(&self.data), key.clone());
-            Self::update_frequency(&mut self.frequency, new_freq - 1, new_freq, key);
+            update_frequency(&mut self.frequency, new_freq - 1, new_freq, key);
         }
 
         fn dec(&mut self, key: String) {
             let new_freq = Self::remove_word(Rc::clone(&self.data), key.clone());
             match new_freq {
                 Some(num) => {
-                    Self::update_frequency(&mut self.frequency, num + 1, num, key);
+                    update_frequency(&mut self.frequency, num + 1, num, key);
                 }
                 None => {
-                    Self::update_frequency(&mut self.frequency, 1, 0, key);
+                    update_frequency(&mut self.frequency, 1, 0, key);
                 }
             }
         }
@@ -531,10 +547,118 @@ mod all_one {
 
     #[allow(dead_code)]
     pub struct AllOneFast {
-        str_to_freq: HashMap<String, u32>,
-        freq_to_str: HashMap<u32, String>,
+        str_to_freq: HashMap<String, u16>,
+        freq_to_str: HashMap<u16, HashSet<String>>,
+        freq_present: Vec<u16>,
+    }
 
-        frequency: LinkedList<(u16, HashSet<String>)>,
+    impl AllOneFast {
+        fn update_freq_sets(
+            sets: &mut HashMap<u16, HashSet<String>>,
+            freq_to_remove: &u16,
+            freq_to_insert: &u16,
+            key: &String,
+        ) {
+            if let Some(old_set) = sets.get_mut(&freq_to_remove) {
+                old_set.remove(key);
+                if old_set.is_empty() {
+                    sets.remove(&freq_to_remove);
+                }
+            }
+            if let Some(new_set) = sets.get_mut(&freq_to_insert) {
+                new_set.insert(key.clone());
+            } else if *freq_to_insert > 0 {
+                sets.insert(*freq_to_insert, HashSet::from([key.clone()]));
+            }
+        }
+    }
+
+    impl StringsCountingStorage for AllOneFast {
+        fn new() -> Self {
+            AllOneFast {
+                str_to_freq: HashMap::new(),
+                freq_to_str: HashMap::new(),
+                freq_present: Vec::new(),
+            }
+        }
+        fn inc(&mut self, key: String) {
+            let old_freq: u16;
+            let new_freq: u16;
+            match self.str_to_freq.get_mut(&key) {
+                Some(freq) => {
+                    old_freq = *freq;
+                    new_freq = *freq + 1;
+                    *freq = new_freq;
+                }
+                None => {
+                    old_freq = 0;
+                    new_freq = 1;
+                    let _ = self.str_to_freq.insert(key.clone(), 1);
+                }
+            }
+            Self::update_freq_sets(&mut self.freq_to_str, &old_freq, &new_freq, &key);
+
+            self.freq_present = self.freq_to_str.keys().map(|k| *k).collect::<Vec<u16>>();
+            self.freq_present.sort();
+        }
+
+        fn dec(&mut self, key: String) {
+            let old_freq: u16;
+            let new_freq: u16;
+            let mut needs_removing = false;
+            match self.str_to_freq.get_mut(&key) {
+                Some(1) => {
+                    old_freq = 1;
+                    new_freq = 0;
+                    needs_removing = true
+                }
+                Some(freq) => {
+                    old_freq = *freq;
+                    new_freq = *freq - 1;
+                    *freq = new_freq;
+                }
+                None => {
+                    panic!("Not expected to have called dec on a string that was not in the struct")
+                }
+            }
+            if needs_removing {
+                self.str_to_freq.remove(&key);
+            }
+            Self::update_freq_sets(&mut self.freq_to_str, &old_freq, &new_freq, &key);
+
+            self.freq_present = self.freq_to_str.keys().map(|k| *k).collect::<Vec<u16>>();
+            self.freq_present.sort();
+        }
+
+        fn get_max_key(&self) -> String {
+            match self.freq_present.len() {
+                0 => {
+                    return String::from("");
+                }
+                l => {
+                    return self.freq_to_str[&self.freq_present[l - 1]]
+                        .iter()
+                        .last()
+                        .unwrap()
+                        .to_string();
+                }
+            }
+        }
+
+        fn get_min_key(&self) -> String {
+            match self.freq_present.len() {
+                0 => {
+                    return String::from("");
+                }
+                _ => {
+                    return self.freq_to_str[&self.freq_present[0]]
+                        .iter()
+                        .last()
+                        .unwrap()
+                        .to_string();
+                }
+            }
+        }
     }
 }
 
@@ -547,5 +671,7 @@ fn main() {
     println!("TrieNode");
     all_one::TrieNode::test();
     println!("AllOneSlow");
-    all_one::test::<all_one::AllOneSlow>();
+    all_one::test::<all_one::AllOneSlow>(false);
+    println!("AllOneFast");
+    all_one::test::<all_one::AllOneFast>(true);
 }

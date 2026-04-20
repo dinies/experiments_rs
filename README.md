@@ -8,3 +8,11 @@ And, in the examples, there is a collection of problems taken from LeetCode.
 - Make sure rust is installed
 - To run the main executable: `cargo run --release`
 - To run the examples: `cargo run --release --example example_name`
+
+### How to profile the code using flamegraph
+```
+cargo install flamegraph
+echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
+cargo flamegraph --example example_name
+xdg-open flamegraph.svg 
+```
